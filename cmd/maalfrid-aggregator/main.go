@@ -1,16 +1,19 @@
 package main
 
 import (
+	"github.com/nlnwa/maalfrid-aggregator/pkg/aggregator"
 	"os"
-	log "github.com/inconshreveable/log15"
+
+	"github.com/inconshreveable/log15"
 	"github.com/namsral/flag"
 	"github.com/nlnwa/pkg/logfmt"
+	"github.com/nlnwa/pkg/log"
+
 	"github.com/nlnwa/maalfrid-aggregator/version"
-	"github.com/nlnwa/maalfrid-aggregator/pkg/aggregator"
 )
 
 func main() {
-	port := 8000
+	port := 8672
 	dbHost := "localhost"
 	dbPort := 28015
 	dbName := "test"
@@ -27,17 +30,31 @@ func main() {
 	flag.BoolVar(&debug, "debug", debug, "enable debugging")
 	flag.Parse()
 
-	logger := log.New()
-	logHandler := log.CallerFuncHandler(log.StreamHandler(os.Stdout, logfmt.LogbackFormat()))
+	var logger log.Logger
+	logger = log15.New()
+	logHandler := log15.CallerFuncHandler(log15.StreamHandler(os.Stdout, logfmt.LogbackFormat()))
+	// print stacktrace if debug option is true
 	if debug {
-		logger.SetHandler(log.CallerStackHandler("%+v", logHandler))
+		logger.(log15.Logger).SetHandler(log15.CallerStackHandler("%+v", logHandler))
 	} else {
-		logger.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+		logger.(log15.Logger).SetHandler(log15.LvlFilterHandler(log15.LvlInfo, logHandler))
 	}
 
 	logger.Info(version.String())
 
-
-	api, err := aggregator.NewApi()
-	srv, err := NewServer(api)
+	store, err := aggregator.NewStore(aggregator.WithDatabase(dbHost, dbPort, dbName, dbUser, dbPassword))
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	api, err := aggregator.NewApi(aggregator.WithStore(store))
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	err = aggregator.ServeApi(port, aggregator.WithLogger(&logger), aggregator.WithApi(api))
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 }

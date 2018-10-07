@@ -22,43 +22,48 @@ type Store struct {
 	*database.Rethink
 }
 
-func (a *Store) SetOption(options ...func(*Store) error) error {
+type StoreOption func(s *Store) error
+
+func WithDatabase(host string, port int, name string, user string, password string) StoreOption {
+	return func(s *Store) error {
+		db := database.New(
+			database.WithAddress(host, port),
+			database.WithName(name),
+			database.WithCredentials(user, password))
+		db.SetTags("json")
+		return nil
+	}
+}
+
+func (s *Store) SetOption(options ...StoreOption) error {
 	for _, opt := range options {
-		if err := opt(a); err != nil {
+		if err := opt(s); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func Open(options ...func(*Store) error) (*Store, error) {
-
-	s := Store{}
-	if err := s.SetOption()
-
-	db := database.New(
-		database.WithAddress(c.DatabaseHost, c.DatabasePort),
-		database.WithName(c.DatabaseName),
-		database.WithCredentials(c.DatabaseUser, c.DatabasePassword))
-	db.SetTags("json")
-
-	if err :=
-	return &Store{
-		Rethink: db,
+func NewStore(options ...StoreOption) (*Store, error) {
+	s := &Store{}
+	err := s.SetOption(options...)
+	if err != nil {
+		return nil, err
+	} else {
+		return s, nil
 	}
 }
 
-//func (ws *workerStore) saveSearchResult(value interface{}) (string, error) {
-//	if err := ws.Connect(); err != nil {
-//		return "", err
-//	} else {
-//		defer ws.Disconnect()
-//	}
-//	if id, err := ws.Insert("result", value); err != nil {
-//		return "", err
-//	} else {
-//		return id, nil
-//	}
-//}
-//
-//
+func (s *Store) SomeDbCall() (string, error) {
+	if err := s.Connect(); err != nil {
+		return "", err
+	} else {
+		defer s.Disconnect()
+	}
+	return "", nil
+	//	if id, err := ws.Insert("result", value); err != nil {
+	//		return "", err
+	//	} else {
+	//		return id, nil
+	//	}
+}

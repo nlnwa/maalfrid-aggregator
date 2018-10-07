@@ -18,17 +18,22 @@ import (
 	"context"
 
 	pb "github.com/golang/protobuf/ptypes/empty"
-
-	api "github.com/nlnwa/maalfrid-aggregator/maalfrid/aggregator"
 )
 
-type Api struct{
-	store aggregatorStore
+type AggregatorApi struct {
+	store *Store
 }
 
-api.RegisterAggregatorServer(server, aggregator.NewApi(options)
+type AggregatorOption func (a* AggregatorApi) error
 
-func (a *Api) SetOption(options ...func(*Api) error) error {
+func WithStore(store *Store) AggregatorOption {
+	return func(a *AggregatorApi) error {
+		a.store = store
+		return nil
+	}
+}
+
+func (a *AggregatorApi) SetOption(options ...AggregatorOption) error {
 	for _, opt := range options {
 		if err := opt(a); err != nil {
 			return err
@@ -37,24 +42,27 @@ func (a *Api) SetOption(options ...func(*Api) error) error {
 	return nil
 }
 
-func NewApi(options ...func(*Api) error) (*api.AggregatorServer, error) {
-	a := Api{}
-
+func NewApi(options ...AggregatorOption) (*AggregatorApi, error) {
+	a := &AggregatorApi{}
+	err := a.SetOption(options...)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
-func (a *Api) RunLanguageDetection(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
-
+func (a *AggregatorApi) RunLanguageDetection(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
 	return new(pb.Empty), nil
 }
 
-func (a *Api) RunAggregation(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
+func (a *AggregatorApi) RunAggregation(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
 	return new(pb.Empty), nil
 }
 
-func (a *Api) SyncEntities(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
+func (a *AggregatorApi) SyncEntities(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
 	return new(pb.Empty), nil
 }
 
-func (a *Api) SyncSeeds(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
+func (a *AggregatorApi) SyncSeeds(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
 	return new(pb.Empty), nil
 }

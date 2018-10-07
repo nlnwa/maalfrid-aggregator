@@ -31,7 +31,7 @@ type Client struct {
 	client  api.AggregatorClient
 }
 
-func NewApiClient(address string) *Client {
+func NewClient(address string) *Client {
 	return &Client{address: address}
 }
 
