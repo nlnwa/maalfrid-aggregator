@@ -16,19 +16,28 @@ package aggregator
 
 import (
 	"context"
+		pb "github.com/golang/protobuf/ptypes/empty"
 
-	pb "github.com/golang/protobuf/ptypes/empty"
+	"github.com/nlnwa/maalfrid-language-detector/pkg/maalfrid"
 )
 
 type AggregatorApi struct {
-	store *Store
+	store  *Store
+	client *maalfrid.Client
 }
 
-type AggregatorOption func (a* AggregatorApi) error
+type AggregatorOption func(a *AggregatorApi) error
 
 func WithStore(store *Store) AggregatorOption {
 	return func(a *AggregatorApi) error {
 		a.store = store
+		return nil
+	}
+}
+
+func WithMaalfridClient(client *maalfrid.Client) AggregatorOption {
+	return func(a *AggregatorApi) error {
+		a.client = client
 		return nil
 	}
 }
@@ -52,6 +61,16 @@ func NewApi(options ...AggregatorOption) (*AggregatorApi, error) {
 }
 
 func (a *AggregatorApi) RunLanguageDetection(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
+	alreadyInProgress, err := a.store.IsLanguageDetectionInProgress()
+	if alreadyInProgress {
+		return new(pb.Empty), err
+	}
+	id, err := a.store.StartLanguageDetection()
+	if err != nil {
+		return nil, err
+	}
+
+	a.store.EndLanguageDetection(id)
 	return new(pb.Empty), nil
 }
 

@@ -107,6 +107,18 @@ func (db *Rethink) CreateTable(name string) error {
 	}
 }
 
+func (db *Rethink) InsertDb(database string, table string, document interface{}) (string, error) {
+	res, err := r.DB(database).Table(table).Insert(document).RunWrite(db.Session)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to insert document into table: %s", table)
+	}
+	id := ""
+	if len(res.GeneratedKeys) > 0 {
+		id = res.GeneratedKeys[0]
+	}
+	return id, nil
+}
+
 func (db *Rethink) Insert(table string, document interface{}) (string, error) {
 	res, err := r.Table(table).Insert(document).RunWrite(db.Session)
 	if err != nil {
@@ -166,6 +178,14 @@ func (db *Rethink) FetchOne(table string, value interface{}) error {
 	} else {
 		cursor.One(value)
 		return nil
+	}
+}
+
+func (db *Rethink) GetCursorDb(database string, table string) (*r.Cursor, error) {
+	if cursor, err := r.DB(database).Table(table).Run(db.Session); err != nil {
+		return nil, errors.Wrapf(err, "failed to get curser to table: %s", table)
+	} else {
+		return cursor, nil
 	}
 }
 

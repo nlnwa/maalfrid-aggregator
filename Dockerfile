@@ -24,9 +24,11 @@ COPY --from=0 /go/bin/maalfrid-aggregator /
 ENV PORT=8672 \
     DB_HOST=localhost \
     DB_PORT=28015 \
-    DB_NAME=test \
+    DB_NAME=maalfrid \
     DB_USER=admin \
-    DB_PASSWORD=""
+    DB_PASSWORD="" \
+    MAALFRID_HOST=localhost \
+    MAALFRID_PORT=8672
 
 ENTRYPOINT ["/maalfrid-aggregator"]
 

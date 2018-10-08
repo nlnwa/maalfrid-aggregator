@@ -15,11 +15,18 @@
 package aggregator
 
 import (
+	"time"
+	"context"
+
+	r "gopkg.in/rethinkdb/rethinkdb-go.v5"
+	"github.com/pkg/errors"
+
 	"github.com/nlnwa/maalfrid-aggregator/pkg/database"
+	"github.com/nlnwa/maalfrid-aggregator/pkg/types"
 )
 
 type Store struct {
-	*database.Rethink
+	db *database.Rethink
 }
 
 type StoreOption func(s *Store) error
@@ -54,16 +61,66 @@ func NewStore(options ...StoreOption) (*Store, error) {
 	}
 }
 
-func (s *Store) SomeDbCall() (string, error) {
-	if err := s.Connect(); err != nil {
-		return "", err
-	} else {
-		defer s.Disconnect()
+func (s *Store) OpenStore() error {
+	return s.db.Connect()
+}
+
+func (s *Store) CloseStore() error {
+	return s.db.Disconnect()
+}
+
+func (s *Store) StartLanguageDetection() (string, error) {
+	logEntry := &types.LanguageDetectionLogEntry{
+		StartTime: time.Now(),
+		Type:      "languageDetection",
 	}
-	return "", nil
-	//	if id, err := ws.Insert("result", value); err != nil {
-	//		return "", err
-	//	} else {
-	//		return id, nil
-	//	}
+	if id, err := s.db.Insert("system", logEntry); err != nil {
+		return "", errors.Wrap(err, "failed to insert language detection log entry")
+	} else {
+		return id, nil
+	}
+}
+
+func (s *Store) EndLanguageDetection(id string) error {
+	logEntry := &types.LanguageDetectionLogEntry{
+		EndTime: time.Now(),
+	}
+	if err := s.db.Update("system", id, logEntry); err != nil {
+		return errors.Wrap(err, "failed to update language detection log entry")
+	} else {
+		return nil
+	}
+}
+
+func (s *Store) IsLanguageDetectionInProgress() (bool, error) {
+	table := "system"
+	cursor, err := r.
+		Table(table).
+		Filter(func(doc r.Term) r.Term {
+			return doc.Field("type").Eq("languageDetection")
+		}).
+		HasFields("endTime").Not().
+		Run(s.db.Session)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get cursor to language detection log entries without endTime")
+	}
+	logEntry := &types.LanguageDetectionLogEntry{}
+	return cursor.Peek(logEntry)
+}
+
+func (s *Store) GetCursorToTextsMissingLanguageField(ctx context.Context) (*r.Cursor, error) {
+
+	database := "veidemann"
+	table := "extracted_text"
+	cursor, err := r.DB(database).Table(table).
+		Filter(func(text r.Term) r.Term {
+			return text.HasFields("language").Not()
+		}).
+		Run(s.db)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get cursor to: %s.%s", database, table)
+	} else {
+		return cursor, nil
+	}
 }
